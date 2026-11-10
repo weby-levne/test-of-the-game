@@ -1,0 +1,1170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>Sports Car Racing</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body {
+      width: 100%; height: 100%; overflow: hidden;
+      background: #0a0a12; color: #fff;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      touch-action: none;
+      user-select: none;
+    }
+    #game-canvas { display: block; width: 100%; height: 100%; }
+
+    /* Screens */
+    .screen {
+      position: fixed; inset: 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      background: linear-gradient(160deg, #0f0c29, #302b63, #24243e);
+      z-index: 100;
+      padding: 20px;
+      overflow-y: auto;
+    }
+    .screen.hidden { display: none; }
+
+    h1 {
+      font-size: clamp(1.8rem, 6vw, 3rem);
+      margin-bottom: 0.3em;
+      text-shadow: 0 0 20px rgba(0,200,255,0.5);
+      letter-spacing: 2px;
+    }
+    h2 { font-size: 1.4rem; margin-bottom: 1rem; opacity: 0.9; }
+    p { opacity: 0.8; margin-bottom: 1rem; text-align: center; max-width: 400px; line-height: 1.5; }
+
+    input[type="text"] {
+      width: min(90vw, 320px);
+      padding: 14px 18px;
+      font-size: 1.1rem;
+      border: 2px solid #4fc3f7;
+      border-radius: 12px;
+      background: rgba(0,0,0,0.4);
+      color: #fff;
+      outline: none;
+      text-align: center;
+      margin-bottom: 1.2rem;
+    }
+    input[type="text"]:focus { border-color: #00e5ff; box-shadow: 0 0 15px rgba(0,229,255,0.4); }
+
+    .btn {
+      padding: 14px 36px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #00c6ff, #0072ff);
+      color: #fff;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s;
+      margin: 8px;
+      min-width: 160px;
+    }
+    .btn:hover, .btn:active { transform: scale(1.05); box-shadow: 0 0 20px rgba(0,198,255,0.6); }
+    .btn.secondary { background: linear-gradient(135deg, #434343, #000); }
+    .btn:disabled { opacity: 0.5; pointer-events: none; }
+
+    .controls-info {
+      background: rgba(0,0,0,0.35);
+      border: 1px solid rgba(79,195,247,0.3);
+      border-radius: 16px;
+      padding: 20px 24px;
+      max-width: 360px;
+      width: 100%;
+      margin-bottom: 1.5rem;
+      text-align: left;
+    }
+    .controls-info h3 { margin-bottom: 12px; color: #4fc3f7; }
+    .controls-info ul { list-style: none; }
+    .controls-info li { padding: 6px 0; display: flex; justify-content: space-between; }
+    .controls-info .key {
+      background: #222; padding: 2px 10px; border-radius: 6px;
+      font-family: monospace; font-size: 0.95rem;
+    }
+
+    /* HUD */
+    #hud {
+      position: fixed; top: 0; left: 0; right: 0;
+      padding: 12px 16px;
+      display: flex; justify-content: space-between; align-items: flex-start;
+      pointer-events: none; z-index: 50;
+      font-size: 1rem;
+      text-shadow: 0 1px 4px #000;
+    }
+    #hud .left, #hud .right { display: flex; flex-direction: column; gap: 4px; }
+    #speed { font-size: 1.6rem; font-weight: 700; color: #4fc3f7; }
+    #lap-info { font-size: 1.1rem; }
+    #nickname-display { opacity: 0.85; font-size: 0.95rem; }
+
+    /* Mobile controls */
+    #mobile-controls {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      height: 180px;
+      pointer-events: none;
+      z-index: 60;
+      display: none;
+    }
+    #mobile-controls.visible { display: block; }
+
+    #joystick-zone {
+      position: absolute; left: 20px; bottom: 30px;
+      width: 130px; height: 130px;
+      pointer-events: auto;
+    }
+    #joystick-base {
+      width: 130px; height: 130px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.12);
+      border: 2px solid rgba(255,255,255,0.25);
+      position: relative;
+    }
+    #joystick-knob {
+      width: 60px; height: 60px;
+      border-radius: 50%;
+      background: rgba(0,198,255,0.7);
+      border: 2px solid #fff;
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+    }
+
+    #accel-btn, #brake-btn {
+      position: absolute; right: 20px;
+      width: 80px; height: 80px;
+      border-radius: 50%;
+      border: 3px solid rgba(255,255,255,0.4);
+      font-size: 0.85rem; font-weight: 700;
+      color: #fff;
+      pointer-events: auto;
+      display: flex; align-items: center; justify-content: center;
+      user-select: none;
+    }
+    #accel-btn {
+      bottom: 110px;
+      background: rgba(0,200,80,0.55);
+    }
+    #brake-btn {
+      bottom: 20px;
+      background: rgba(220,40,40,0.55);
+    }
+    #accel-btn:active, #brake-btn:active { transform: scale(0.92); }
+
+    /* Pause / overlay buttons */
+    #pause-btn {
+      position: fixed; top: 12px; right: 12px;
+      width: 44px; height: 44px;
+      border-radius: 50%;
+      background: rgba(0,0,0,0.5);
+      border: 2px solid rgba(255,255,255,0.3);
+      color: #fff; font-size: 1.2rem;
+      z-index: 70; pointer-events: auto;
+      display: none;
+      align-items: center; justify-content: center;
+      cursor: pointer;
+    }
+
+    .overlay-menu {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.75);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      z-index: 200;
+    }
+    .overlay-menu.hidden { display: none; }
+
+    #loading-bar {
+      width: min(80vw, 300px);
+      height: 8px;
+      background: rgba(255,255,255,0.15);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 20px;
+    }
+    #loading-fill {
+      height: 100%; width: 0%;
+      background: linear-gradient(90deg, #00c6ff, #0072ff);
+      transition: width 0.2s;
+    }
+  </style>
+</head>
+<body>
+  <!-- First-time setup -->
+  <div id="setup-screen" class="screen">
+    <h1>SPORTS CAR RACING</h1>
+    <div id="setup-step-name">
+      <h2>Welcome, racer!</h2>
+      <p>This is your first time here. Tell us your nickname:</p>
+      <input type="text" id="nickname-input" placeholder="Enter nickname..." maxlength="16" autocomplete="off" />
+      <button class="btn" id="btn-save-name">Continue</button>
+    </div>
+
+    <div id="setup-step-controls" class="hidden">
+      <h2>Controls</h2>
+      <p id="device-msg">We detected you're on a <strong id="device-type">device</strong>.</p>
+      <div class="controls-info" id="controls-display"></div>
+      <button class="btn" id="btn-confirm-controls">Got it — Let's race!</button>
+    </div>
+  </div>
+
+  <!-- Main Menu -->
+  <div id="menu-screen" class="screen hidden">
+    <h1>SPORTS CAR RACING</h1>
+    <p>Welcome back, <strong id="menu-nickname">Racer</strong>!</p>
+    <button class="btn" id="btn-play">Play Race</button>
+    <button class="btn secondary" id="btn-change-name">Change Nickname</button>
+    <button class="btn secondary" id="btn-reset-setup">Reset First-time Setup</button>
+  </div>
+
+  <!-- Loading -->
+  <div id="loading-screen" class="screen hidden">
+    <h2>Loading track & cars...</h2>
+    <div id="loading-bar"><div id="loading-fill"></div></div>
+    <p id="loading-text" style="margin-top:12px;font-size:0.9rem;">Preparing...</p>
+  </div>
+
+  <!-- Game HUD -->
+  <div id="hud" class="hidden">
+    <div class="left">
+      <div id="nickname-display">Racer</div>
+      <div id="lap-info">Lap 1 / 3</div>
+    </div>
+    <div class="right">
+      <div id="speed">0 km/h</div>
+      <div id="timer">00:00.0</div>
+    </div>
+  </div>
+
+  <button id="pause-btn">❚❚</button>
+
+  <!-- Mobile touch controls -->
+  <div id="mobile-controls">
+    <div id="joystick-zone">
+      <div id="joystick-base">
+        <div id="joystick-knob"></div>
+      </div>
+    </div>
+    <div id="accel-btn">GAS</div>
+    <div id="brake-btn">BRAKE</div>
+  </div>
+
+  <!-- Pause overlay -->
+  <div id="pause-overlay" class="overlay-menu hidden">
+    <h2>Paused</h2>
+    <button class="btn" id="btn-resume">Resume</button>
+    <button class="btn secondary" id="btn-quit">Quit to Menu</button>
+  </div>
+
+  <!-- Race finished -->
+  <div id="finish-overlay" class="overlay-menu hidden">
+    <h2>Race Finished!</h2>
+    <p id="finish-time" style="font-size:1.4rem;margin:1rem 0;"></p>
+    <button class="btn" id="btn-race-again">Race Again</button>
+    <button class="btn secondary" id="btn-back-menu">Main Menu</button>
+  </div>
+
+  <canvas id="game-canvas"></canvas>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.170.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.170.0/examples/jsm/"
+    }
+  }
+  </script>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js'; // not used in game, but available
+
+    // ========== STATE & STORAGE ==========
+    const STORAGE_KEY = 'sportsCarRacing_v1';
+
+    function loadSave() {
+      try {
+        return JSON.parse(localStorage.getItem(STORAGE_KEY)) || null;
+      } catch { return null; }
+    }
+    function saveData(data) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    }
+
+    let save = loadSave();
+    let isMobile = false;
+    let nickname = '';
+    let controlScheme = 'desktop'; // 'desktop' | 'mobile'
+
+    // Detect device
+    function detectDevice() {
+      const ua = navigator.userAgent || '';
+      const touch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      const small = window.matchMedia('(max-width: 900px)').matches;
+      return (touch && small) || /Android|iPhone|iPad|iPod|Mobile/i.test(ua);
+    }
+
+    // ========== UI ELEMENTS ==========
+    const setupScreen = document.getElementById('setup-screen');
+    const setupStepName = document.getElementById('setup-step-name');
+    const setupStepControls = document.getElementById('setup-step-controls');
+    const nicknameInput = document.getElementById('nickname-input');
+    const btnSaveName = document.getElementById('btn-save-name');
+    const deviceTypeEl = document.getElementById('device-type');
+    const deviceMsg = document.getElementById('device-msg');
+    const controlsDisplay = document.getElementById('controls-display');
+    const btnConfirmControls = document.getElementById('btn-confirm-controls');
+
+    const menuScreen = document.getElementById('menu-screen');
+    const menuNickname = document.getElementById('menu-nickname');
+    const btnPlay = document.getElementById('btn-play');
+    const btnChangeName = document.getElementById('btn-change-name');
+    const btnResetSetup = document.getElementById('btn-reset-setup');
+
+    const loadingScreen = document.getElementById('loading-screen');
+    const loadingFill = document.getElementById('loading-fill');
+    const loadingText = document.getElementById('loading-text');
+
+    const hud = document.getElementById('hud');
+    const nicknameDisplay = document.getElementById('nickname-display');
+    const lapInfo = document.getElementById('lap-info');
+    const speedEl = document.getElementById('speed');
+    const timerEl = document.getElementById('timer');
+    const pauseBtn = document.getElementById('pause-btn');
+
+    const mobileControls = document.getElementById('mobile-controls');
+    const joystickZone = document.getElementById('joystick-zone');
+    const joystickKnob = document.getElementById('joystick-knob');
+    const accelBtn = document.getElementById('accel-btn');
+    const brakeBtn = document.getElementById('brake-btn');
+
+    const pauseOverlay = document.getElementById('pause-overlay');
+    const btnResume = document.getElementById('btn-resume');
+    const btnQuit = document.getElementById('btn-quit');
+
+    const finishOverlay = document.getElementById('finish-overlay');
+    const finishTime = document.getElementById('finish-time');
+    const btnRaceAgain = document.getElementById('btn-race-again');
+    const btnBackMenu = document.getElementById('btn-back-menu');
+
+    // ========== FIRST-TIME SETUP ==========
+    function showFirstTimeSetup() {
+      setupScreen.classList.remove('hidden');
+      menuScreen.classList.add('hidden');
+      setupStepName.classList.remove('hidden');
+      setupStepControls.classList.add('hidden');
+      nicknameInput.value = '';
+      nicknameInput.focus();
+    }
+
+    function showControlsStep() {
+      isMobile = detectDevice();
+      controlScheme = isMobile ? 'mobile' : 'desktop';
+      deviceTypeEl.textContent = isMobile ? 'Phone / Tablet' : 'PC / Desktop';
+
+      let html = '';
+      if (isMobile) {
+        html = `
+          <h3>Touch Controls</h3>
+          <ul>
+            <li><span>Steering</span> <span class="key">Left joystick</span></li>
+            <li><span>Accelerate</span> <span class="key">GAS button</span></li>
+            <li><span>Brake / Reverse</span> <span class="key">BRAKE button</span></li>
+          </ul>
+          <p style="margin-top:12px;font-size:0.9rem;opacity:0.75;">You can also tilt the phone slightly for fine steering if supported.</p>
+        `;
+      } else {
+        html = `
+          <h3>Keyboard Controls</h3>
+          <ul>
+            <li><span>Steer Left / Right</span> <span class="key">A / D</span> or <span class="key">← →</span></li>
+            <li><span>Accelerate</span> <span class="key">W</span> or <span class="key">↑</span></li>
+            <li><span>Brake / Reverse</span> <span class="key">S</span> or <span class="key">↓</span></li>
+            <li><span>Pause</span> <span class="key">Esc</span> or <span class="key">P</span></li>
+          </ul>
+        `;
+      }
+      controlsDisplay.innerHTML = html;
+
+      setupStepName.classList.add('hidden');
+      setupStepControls.classList.remove('hidden');
+    }
+
+    btnSaveName.addEventListener('click', () => {
+      const name = nicknameInput.value.trim();
+      if (!name) {
+        nicknameInput.style.borderColor = '#ff4444';
+        nicknameInput.focus();
+        return;
+      }
+      nickname = name.substring(0, 16);
+      showControlsStep();
+    });
+
+    nicknameInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') btnSaveName.click();
+    });
+
+    btnConfirmControls.addEventListener('click', () => {
+      save = {
+        nickname,
+        controlScheme,
+        isMobile,
+        firstTimeDone: true,
+        createdAt: Date.now()
+      };
+      saveData(save);
+      setupScreen.classList.add('hidden');
+      showMainMenu();
+    });
+
+    // ========== MAIN MENU ==========
+    function showMainMenu() {
+      save = loadSave();
+      if (!save || !save.firstTimeDone) {
+        showFirstTimeSetup();
+        return;
+      }
+      nickname = save.nickname || 'Racer';
+      controlScheme = save.controlScheme || (detectDevice() ? 'mobile' : 'desktop');
+      isMobile = controlScheme === 'mobile';
+
+      menuNickname.textContent = nickname;
+      menuScreen.classList.remove('hidden');
+      setupScreen.classList.add('hidden');
+      loadingScreen.classList.add('hidden');
+      hud.classList.add('hidden');
+      pauseBtn.style.display = 'none';
+      mobileControls.classList.remove('visible');
+      pauseOverlay.classList.add('hidden');
+      finishOverlay.classList.add('hidden');
+
+      // Stop game if running
+      if (gameRunning) stopGame();
+    }
+
+    btnPlay.addEventListener('click', () => {
+      menuScreen.classList.add('hidden');
+      startGame();
+    });
+
+    btnChangeName.addEventListener('click', () => {
+      const newName = prompt('Enter new nickname:', nickname);
+      if (newName && newName.trim()) {
+        nickname = newName.trim().substring(0, 16);
+        save.nickname = nickname;
+        saveData(save);
+        menuNickname.textContent = nickname;
+      }
+    });
+
+    btnResetSetup.addEventListener('click', () => {
+      if (confirm('This will clear your nickname and show the first-time setup again. Continue?')) {
+        localStorage.removeItem(STORAGE_KEY);
+        save = null;
+        showFirstTimeSetup();
+      }
+    });
+
+    // ========== GAME CORE ==========
+    let renderer, scene, camera, clock;
+    let playerCar, aiCar;
+    let trackGroup;
+    let gameRunning = false;
+    let paused = false;
+    let raceFinished = false;
+
+    // Input state
+    const keys = { forward: false, backward: false, left: false, right: false };
+    let joyX = 0, joyY = 0;
+    let accelPressed = false, brakePressed = false;
+
+    // Car physics (arcade)
+    const carState = {
+      position: new THREE.Vector3(0, 0.5, 0),
+      rotation: 0, // yaw
+      speed: 0,
+      maxSpeed: 48,
+      accel: 28,
+      brakeForce: 45,
+      friction: 12,
+      turnSpeed: 2.4,
+      width: 1.8,
+      length: 4.2
+    };
+
+    // AI simple state
+    const aiState = {
+      position: new THREE.Vector3(-6, 0.5, 0),
+      rotation: 0,
+      speed: 0,
+      targetSpeed: 32,
+      pathIndex: 0
+    };
+
+    // Race
+    let currentLap = 1;
+    const totalLaps = 3;
+    let raceTime = 0;
+    let lastCheckpoint = 0;
+    const checkpoints = []; // simple sector points
+
+    // Track size
+    const TRACK_RADIUS = 55;
+    const TRACK_WIDTH = 14;
+
+    function createRenderer() {
+      const canvas = document.getElementById('game-canvas');
+      renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.1;
+    }
+
+    function createScene() {
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x87ceeb);
+      scene.fog = new THREE.Fog(0x87ceeb, 80, 220);
+
+      // Lights
+      const hemi = new THREE.HemisphereLight(0xb1e1ff, 0xb97a20, 0.7);
+      scene.add(hemi);
+
+      const sun = new THREE.DirectionalLight(0xffffff, 1.4);
+      sun.position.set(40, 80, 30);
+      sun.castShadow = true;
+      sun.shadow.mapSize.set(2048, 2048);
+      sun.shadow.camera.near = 10;
+      sun.shadow.camera.far = 200;
+      sun.shadow.camera.left = -80;
+      sun.shadow.camera.right = 80;
+      sun.shadow.camera.top = 80;
+      sun.shadow.camera.bottom = -80;
+      scene.add(sun);
+
+      // Ground / grass
+      const groundGeo = new THREE.PlaneGeometry(400, 400);
+      const groundMat = new THREE.MeshStandardMaterial({ color: 0x3a7d44, roughness: 0.9, metalness: 0.05 });
+      const ground = new THREE.Mesh(groundGeo, groundMat);
+      ground.rotation.x = -Math.PI / 2;
+      ground.receiveShadow = true;
+      scene.add(ground);
+
+      // Track (asphalt ring)
+      trackGroup = new THREE.Group();
+      const trackShape = new THREE.Shape();
+      const outerR = TRACK_RADIUS + TRACK_WIDTH / 2;
+      const innerR = TRACK_RADIUS - TRACK_WIDTH / 2;
+      trackShape.absarc(0, 0, outerR, 0, Math.PI * 2, false);
+      const hole = new THREE.Path();
+      hole.absarc(0, 0, innerR, 0, Math.PI * 2, true);
+      trackShape.holes.push(hole);
+
+      const trackGeo = new THREE.ShapeGeometry(trackShape, 64);
+      const trackMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.85, metalness: 0.1 });
+      const trackMesh = new THREE.Mesh(trackGeo, trackMat);
+      trackMesh.rotation.x = -Math.PI / 2;
+      trackMesh.position.y = 0.02;
+      trackMesh.receiveShadow = true;
+      trackGroup.add(trackMesh);
+
+      // Center line
+      const lineMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+      for (let i = 0; i < 48; i++) {
+        const a = (i / 48) * Math.PI * 2;
+        const x = Math.cos(a) * TRACK_RADIUS;
+        const z = Math.sin(a) * TRACK_RADIUS;
+        const dash = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.05, 2.2), lineMat);
+        dash.position.set(x, 0.04, z);
+        dash.rotation.y = -a;
+        trackGroup.add(dash);
+      }
+
+      // Outer & inner barriers (simple boxes)
+      const barrierMat = new THREE.MeshStandardMaterial({ color: 0xcc2222, roughness: 0.6 });
+      for (let i = 0; i < 60; i++) {
+        const a = (i / 60) * Math.PI * 2;
+        // outer
+        const ox = Math.cos(a) * (outerR + 0.6);
+        const oz = Math.sin(a) * (outerR + 0.6);
+        const outerB = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.0, 0.4), barrierMat);
+        outerB.position.set(ox, 0.5, oz);
+        outerB.rotation.y = -a;
+        outerB.castShadow = true;
+        trackGroup.add(outerB);
+
+        // inner
+        const ix = Math.cos(a) * (innerR - 0.6);
+        const iz = Math.sin(a) * (innerR - 0.6);
+        const innerB = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.9, 0.35), barrierMat);
+        innerB.position.set(ix, 0.45, iz);
+        innerB.rotation.y = -a;
+        innerB.castShadow = true;
+        trackGroup.add(innerB);
+      }
+
+      // Start/finish line
+      const finishGeo = new THREE.PlaneGeometry(TRACK_WIDTH + 1, 3);
+      const finishMat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide });
+      const finish = new THREE.Mesh(finishGeo, finishMat);
+      finish.rotation.x = -Math.PI / 2;
+      finish.position.set(TRACK_RADIUS, 0.05, 0);
+      trackGroup.add(finish);
+
+      // Checkpoints for lap counting (angles)
+      for (let i = 0; i < 4; i++) {
+        checkpoints.push((i / 4) * Math.PI * 2);
+      }
+
+      scene.add(trackGroup);
+
+      // Simple sky-ish spheres or just fog is enough
+    }
+
+    function createFallbackCar(color) {
+      const group = new THREE.Group();
+      const body = new THREE.Mesh(
+        new THREE.BoxGeometry(1.8, 0.6, 4.2),
+        new THREE.MeshStandardMaterial({ color, metalness: 0.4, roughness: 0.4 })
+      );
+      body.position.y = 0.5;
+      body.castShadow = true;
+      group.add(body);
+
+      const cabin = new THREE.Mesh(
+        new THREE.BoxGeometry(1.5, 0.5, 2.0),
+        new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.6, roughness: 0.3 })
+      );
+      cabin.position.set(0, 0.95, -0.3);
+      cabin.castShadow = true;
+      group.add(cabin);
+
+      // Wheels
+      const wheelGeo = new THREE.CylinderGeometry(0.35, 0.35, 0.3, 12);
+      const wheelMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
+      const positions = [
+        [0.95, 0.35, 1.3], [-0.95, 0.35, 1.3],
+        [0.95, 0.35, -1.3], [-0.95, 0.35, -1.3]
+      ];
+      positions.forEach(([x, y, z]) => {
+        const w = new THREE.Mesh(wheelGeo, wheelMat);
+        w.rotation.z = Math.PI / 2;
+        w.position.set(x, y, z);
+        w.castShadow = true;
+        group.add(w);
+      });
+
+      return group;
+    }
+
+    async function loadCars(onProgress) {
+      const loader = new FBXLoader();
+      const scale = 0.02; // typical FBX scale adjustment – may need tweak
+
+      function loadOne(url) {
+        return new Promise((resolve, reject) => {
+          loader.load(
+            url,
+            (fbx) => {
+              fbx.scale.setScalar(scale);
+              fbx.traverse((c) => {
+                if (c.isMesh) {
+                  c.castShadow = true;
+                  c.receiveShadow = true;
+                  if (c.material) {
+                    if (Array.isArray(c.material)) {
+                      c.material.forEach(m => { m.metalness = 0.5; m.roughness = 0.4; });
+                    } else {
+                      c.material.metalness = 0.5;
+                      c.material.roughness = 0.4;
+                    }
+                  }
+                }
+              });
+              // Center the model roughly
+              const box = new THREE.Box3().setFromObject(fbx);
+              const center = box.getCenter(new THREE.Vector3());
+              fbx.position.sub(center);
+              fbx.position.y = -box.min.y * scale; // sit on ground
+              resolve(fbx);
+            },
+            (xhr) => {
+              if (xhr.lengthComputable && onProgress) {
+                // rough progress
+              }
+            },
+            (err) => {
+              console.warn('FBX load failed, using fallback', err);
+              resolve(null);
+            }
+          );
+        });
+      }
+
+      onProgress?.(0.1, 'Loading player car...');
+      let playerModel = await loadOne('./sports_car.fbx');
+      onProgress?.(0.45, 'Loading AI car...');
+      let aiModel = await loadOne('./sports_car2.fbx');
+
+      if (!playerModel) playerModel = createFallbackCar(0x1565c0);
+      if (!aiModel) aiModel = createFallbackCar(0xc62828);
+
+      // Slightly different colors / scale tweaks if needed
+      playerCar = playerModel;
+      aiCar = aiModel;
+
+      // Make sure both face +Z forward roughly (FBX often face +X or -Z – we may rotate)
+      // We'll adjust in placement
+      scene.add(playerCar);
+      scene.add(aiCar);
+
+      onProgress?.(0.9, 'Almost ready...');
+    }
+
+    function resetRace() {
+      // Player start position (slightly outside center line)
+      carState.position.set(TRACK_RADIUS, 0.4, 4);
+      carState.rotation = Math.PI; // facing negative Z? adjust after testing
+      carState.speed = 0;
+
+      // Actually for a circle, starting at angle 0 facing tangent
+      // Better: place on track at angle 0, facing +tangent
+      const startAngle = 0;
+      carState.position.set(
+        Math.cos(startAngle) * TRACK_RADIUS,
+        0.4,
+        Math.sin(startAngle) * TRACK_RADIUS
+      );
+      carState.rotation = startAngle + Math.PI / 2; // face along track
+
+      aiState.position.set(
+        Math.cos(startAngle) * (TRACK_RADIUS - 3),
+        0.4,
+        Math.sin(startAngle) * (TRACK_RADIUS - 3)
+      );
+      aiState.rotation = carState.rotation;
+      aiState.speed = 0;
+      aiState.pathIndex = 0;
+
+      currentLap = 1;
+      raceTime = 0;
+      lastCheckpoint = 0;
+      raceFinished = false;
+      paused = false;
+
+      updateCarTransforms();
+    }
+
+    function updateCarTransforms() {
+      if (playerCar) {
+        playerCar.position.copy(carState.position);
+        playerCar.rotation.y = carState.rotation;
+      }
+      if (aiCar) {
+        aiCar.position.copy(aiState.position);
+        aiCar.rotation.y = aiState.rotation;
+      }
+    }
+
+    function getTrackAngle(pos) {
+      return Math.atan2(pos.z, pos.x);
+    }
+
+    function updatePlayer(dt) {
+      let accelInput = 0;
+      let steerInput = 0;
+
+      if (controlScheme === 'mobile') {
+        if (accelPressed) accelInput = 1;
+        if (brakePressed) accelInput = -1;
+        steerInput = -joyX; // joystick left = positive turn? adjust feel
+      } else {
+        if (keys.forward) accelInput = 1;
+        if (keys.backward) accelInput = -1;
+        if (keys.left) steerInput = 1;
+        if (keys.right) steerInput = -1;
+      }
+
+      // Acceleration / braking
+      if (accelInput > 0) {
+        carState.speed += carState.accel * accelInput * dt;
+      } else if (accelInput < 0) {
+        carState.speed += carState.brakeForce * accelInput * dt;
+      } else {
+        // friction
+        if (carState.speed > 0) {
+          carState.speed = Math.max(0, carState.speed - carState.friction * dt);
+        } else if (carState.speed < 0) {
+          carState.speed = Math.min(0, carState.speed + carState.friction * dt);
+        }
+      }
+
+      carState.speed = THREE.MathUtils.clamp(carState.speed, -carState.maxSpeed * 0.4, carState.maxSpeed);
+
+      // Steering – stronger at lower speeds? arcade style
+      const steerFactor = Math.min(1, Math.abs(carState.speed) / 12);
+      carState.rotation += steerInput * carState.turnSpeed * steerFactor * Math.sign(carState.speed || 1) * dt;
+
+      // Move
+      const forward = new THREE.Vector3(
+        Math.sin(carState.rotation),
+        0,
+        Math.cos(carState.rotation)
+      );
+      carState.position.addScaledVector(forward, carState.speed * dt);
+
+      // Keep roughly on track (soft walls)
+      const dist = Math.sqrt(carState.position.x ** 2 + carState.position.z ** 2);
+      const minR = TRACK_RADIUS - TRACK_WIDTH / 2 + 1.2;
+      const maxR = TRACK_RADIUS + TRACK_WIDTH / 2 - 1.2;
+      if (dist < minR) {
+        const push = (minR - dist) * 2;
+        carState.position.x *= (dist + push) / dist;
+        carState.position.z *= (dist + push) / dist;
+        carState.speed *= 0.92;
+      } else if (dist > maxR) {
+        const push = (dist - maxR) * 2;
+        carState.position.x *= (dist - push) / dist;
+        carState.position.z *= (dist - push) / dist;
+        carState.speed *= 0.92;
+      }
+
+      // Lap detection via angle crossing
+      const angle = getTrackAngle(carState.position);
+      // Normalize and detect when we cross the start line going forward
+      // Simple version: check progress around the circle
+      const normalized = (angle + Math.PI * 2) % (Math.PI * 2);
+      // We use a simple sector approach
+      // For prototype: if we go past angle ~0 while having positive speed and previous was near 2π
+    }
+
+    // Better lap counter
+    let prevAngle = 0;
+    function checkLaps() {
+      const angle = getTrackAngle(carState.position);
+      let delta = angle - prevAngle;
+      // Handle wrap
+      if (delta > Math.PI) delta -= Math.PI * 2;
+      if (delta < -Math.PI) delta += Math.PI * 2;
+
+      // If we crossed the start line (angle near 0) in the positive direction
+      if (prevAngle < -0.3 && angle > 0.3 && carState.speed > 5) {
+        // crossed from negative to positive? depends on orientation
+      }
+
+      // Simpler robust way: accumulate progress
+      // We'll track total angle traveled
+    }
+
+    // Actually implement a reliable lap system
+    let totalAngleProgress = 0;
+    let lastAngle = 0;
+
+    function updateLapProgress() {
+      const angle = getTrackAngle(carState.position);
+      let delta = angle - lastAngle;
+      if (delta > Math.PI) delta -= Math.PI * 2;
+      if (delta < -Math.PI) delta += Math.PI * 2;
+
+      // Only count positive progress (going the correct way)
+      if (delta > 0 && carState.speed > 2) {
+        totalAngleProgress += delta;
+      }
+      lastAngle = angle;
+
+      const lapsDone = Math.floor(totalAngleProgress / (Math.PI * 2));
+      const newLap = lapsDone + 1;
+      if (newLap > currentLap && newLap <= totalLaps + 1) {
+        currentLap = newLap;
+        if (currentLap > totalLaps) {
+          finishRace();
+        }
+      }
+    }
+
+    function updateAI(dt) {
+      // Simple AI: try to stay on the ideal radius and match a target speed, steer toward tangent
+      const idealR = TRACK_RADIUS - 2;
+      const pos = aiState.position;
+      const dist = Math.sqrt(pos.x * pos.x + pos.z * pos.z);
+      const currentAngle = Math.atan2(pos.z, pos.x);
+
+      // Desired heading is tangent + small correction toward ideal radius
+      const radiusError = dist - idealR;
+      const desiredHeading = currentAngle + Math.PI / 2 - radiusError * 0.08;
+
+      // Steer toward desired heading
+      let headingError = desiredHeading - aiState.rotation;
+      while (headingError > Math.PI) headingError -= Math.PI * 2;
+      while (headingError < -Math.PI) headingError += Math.PI * 2;
+
+      aiState.rotation += THREE.MathUtils.clamp(headingError, -2.5 * dt, 2.5 * dt);
+
+      // Speed control
+      const target = aiState.targetSpeed * (0.85 + Math.random() * 0.1); // slight variation
+      if (aiState.speed < target) aiState.speed += 18 * dt;
+      else aiState.speed -= 10 * dt;
+      aiState.speed = THREE.MathUtils.clamp(aiState.speed, 0, 42);
+
+      const forward = new THREE.Vector3(
+        Math.sin(aiState.rotation),
+        0,
+        Math.cos(aiState.rotation)
+      );
+      aiState.position.addScaledVector(forward, aiState.speed * dt);
+
+      // Soft walls for AI too
+      const d = Math.sqrt(aiState.position.x ** 2 + aiState.position.z ** 2);
+      const minR = TRACK_RADIUS - TRACK_WIDTH / 2 + 1.5;
+      const maxR = TRACK_RADIUS + TRACK_WIDTH / 2 - 1.5;
+      if (d < minR) {
+        aiState.position.x *= minR / d;
+        aiState.position.z *= minR / d;
+      } else if (d > maxR) {
+        aiState.position.x *= maxR / d;
+        aiState.position.z *= maxR / d;
+      }
+    }
+
+    function updateCamera(dt) {
+      if (!playerCar) return;
+      // Chase camera
+      const camOffset = new THREE.Vector3(0, 6.5, -12);
+      camOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), carState.rotation);
+      const targetPos = carState.position.clone().add(camOffset);
+      camera.position.lerp(targetPos, 1 - Math.pow(0.02, dt * 60));
+      const lookAt = carState.position.clone().add(new THREE.Vector3(0, 1.2, 0));
+      camera.lookAt(lookAt);
+    }
+
+    function updateHUD() {
+      speedEl.textContent = Math.round(Math.abs(carState.speed) * 3.6) + ' km/h'; // rough conversion
+      const m = Math.floor(raceTime / 60);
+      const s = Math.floor(raceTime % 60);
+      const ms = Math.floor((raceTime % 1) * 10);
+      timerEl.textContent = `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}.${ms}`;
+      lapInfo.textContent = `Lap ${Math.min(currentLap, totalLaps)} / ${totalLaps}`;
+      nicknameDisplay.textContent = nickname;
+    }
+
+    function finishRace() {
+      raceFinished = true;
+      gameRunning = false;
+      finishTime.textContent = `Your time: ${timerEl.textContent}`;
+      finishOverlay.classList.remove('hidden');
+      pauseBtn.style.display = 'none';
+      mobileControls.classList.remove('visible');
+    }
+
+    function gameLoop() {
+      if (!gameRunning) return;
+      requestAnimationFrame(gameLoop);
+
+      const dt = Math.min(clock.getDelta(), 0.05);
+      if (paused || raceFinished) return;
+
+      raceTime += dt;
+      updatePlayer(dt);
+      updateAI(dt);
+      updateLapProgress();
+      updateCarTransforms();
+      updateCamera(dt);
+      updateHUD();
+
+      renderer.render(scene, camera);
+    }
+
+    async function startGame() {
+      loadingScreen.classList.remove('hidden');
+      loadingFill.style.width = '5%';
+      loadingText.textContent = 'Creating world...';
+
+      // Init Three.js if needed
+      if (!renderer) {
+        createRenderer();
+        camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 500);
+        camera.position.set(0, 15, 25);
+        clock = new THREE.Clock();
+        createScene();
+      }
+
+      loadingFill.style.width = '25%';
+      loadingText.textContent = 'Loading cars...';
+
+      try {
+        await loadCars((p, msg) => {
+          loadingFill.style.width = (25 + p * 60) + '%';
+          if (msg) loadingText.textContent = msg;
+        });
+      } catch (e) {
+        console.error(e);
+        // fallbacks already handled inside
+      }
+
+      loadingFill.style.width = '95%';
+      loadingText.textContent = 'Starting race...';
+
+      resetRace();
+      totalAngleProgress = 0;
+      lastAngle = getTrackAngle(carState.position);
+
+      // Show UI
+      loadingScreen.classList.add('hidden');
+      hud.classList.remove('hidden');
+      pauseBtn.style.display = 'flex';
+
+      if (controlScheme === 'mobile') {
+        mobileControls.classList.add('visible');
+      }
+
+      gameRunning = true;
+      paused = false;
+      raceFinished = false;
+      clock.start();
+      gameLoop();
+    }
+
+    function stopGame() {
+      gameRunning = false;
+      paused = false;
+    }
+
+    function togglePause() {
+      if (!gameRunning || raceFinished) return;
+      paused = !paused;
+      pauseOverlay.classList.toggle('hidden', !paused);
+      if (paused) {
+        mobileControls.classList.remove('visible');
+      } else if (controlScheme === 'mobile') {
+        mobileControls.classList.add('visible');
+      }
+    }
+
+    // ========== INPUT ==========
+    window.addEventListener('keydown', (e) => {
+      if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
+      switch (e.code) {
+        case 'KeyW': case 'ArrowUp': keys.forward = true; break;
+        case 'KeyS': case 'ArrowDown': keys.backward = true; break;
+        case 'KeyA': case 'ArrowLeft': keys.left = true; break;
+        case 'KeyD': case 'ArrowRight': keys.right = true; break;
+        case 'Escape': case 'KeyP': togglePause(); break;
+      }
+    });
+    window.addEventListener('keyup', (e) => {
+      switch (e.code) {
+        case 'KeyW': case 'ArrowUp': keys.forward = false; break;
+        case 'KeyS': case 'ArrowDown': keys.backward = false; break;
+        case 'KeyA': case 'ArrowLeft': keys.left = false; break;
+        case 'KeyD': case 'ArrowRight': keys.right = false; break;
+      }
+    });
+
+    // Mobile joystick
+    let joyActive = false;
+    let joyStartX = 0, joyStartY = 0;
+
+    function handleJoyStart(x, y) {
+      joyActive = true;
+      const rect = joystickZone.getBoundingClientRect();
+      joyStartX = rect.left + rect.width / 2;
+      joyStartY = rect.top + rect.height / 2;
+      updateJoy(x, y);
+    }
+    function updateJoy(x, y) {
+      if (!joyActive) return;
+      let dx = x - joyStartX;
+      let dy = y - joyStartY;
+      const max = 45;
+      const len = Math.sqrt(dx*dx + dy*dy);
+      if (len > max) {
+        dx = (dx / len) * max;
+        dy = (dy / len) * max;
+      }
+      joystickKnob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+      joyX = dx / max;
+      joyY = dy / max;
+    }
+    function handleJoyEnd() {
+      joyActive = false;
+      joyX = 0; joyY = 0;
+      joystickKnob.style.transform = 'translate(-50%, -50%)';
+    }
+
+    joystickZone.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      joystickZone.setPointerCapture(e.pointerId);
+      handleJoyStart(e.clientX, e.clientY);
+    });
+    joystickZone.addEventListener('pointermove', (e) => {
+      if (joyActive) updateJoy(e.clientX, e.clientY);
+    });
+    joystickZone.addEventListener('pointerup', handleJoyEnd);
+    joystickZone.addEventListener('pointercancel', handleJoyEnd);
+
+    // Accel / Brake buttons
+    function bindHold(btn, on, off) {
+      const start = (e) => { e.preventDefault(); on(); };
+      const end = (e) => { e.preventDefault(); off(); };
+      btn.addEventListener('pointerdown', start);
+      btn.addEventListener('pointerup', end);
+      btn.addEventListener('pointerleave', end);
+      btn.addEventListener('pointercancel', end);
+    }
+    bindHold(accelBtn, () => accelPressed = true, () => accelPressed = false);
+    bindHold(brakeBtn, () => brakePressed = true, () => brakePressed = false);
+
+    // Pause / finish buttons
+    pauseBtn.addEventListener('click', togglePause);
+    btnResume.addEventListener('click', () => { paused = false; pauseOverlay.classList.add('hidden'); if (controlScheme==='mobile') mobileControls.classList.add('visible'); });
+    btnQuit.addEventListener('click', () => {
+      stopGame();
+      showMainMenu();
+    });
+    btnRaceAgain.addEventListener('click', () => {
+      finishOverlay.classList.add('hidden');
+      resetRace();
+      totalAngleProgress = 0;
+      lastAngle = getTrackAngle(carState.position);
+      gameRunning = true;
+      raceFinished = false;
+      if (controlScheme === 'mobile') mobileControls.classList.add('visible');
+      pauseBtn.style.display = 'flex';
+      clock.start();
+      gameLoop();
+    });
+    btnBackMenu.addEventListener('click', () => {
+      finishOverlay.classList.add('hidden');
+      showMainMenu();
+    });
+
+    // Resize
+    window.addEventListener('resize', () => {
+      if (!camera || !renderer) return;
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // Prevent default touch behaviors
+    document.addEventListener('touchmove', (e) => { if (gameRunning) e.preventDefault(); }, { passive: false });
+
+    // ========== BOOT ==========
+    if (save && save.firstTimeDone) {
+      showMainMenu();
+    } else {
+      showFirstTimeSetup();
+    }
+
+    // Make canvas fill
+    window.addEventListener('load', () => {
+      document.body.style.height = window.innerHeight + 'px';
+    });
+  </script>
+</body>
+</html>
